@@ -1,5 +1,6 @@
 package com.vibetest.controller
 
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import javax.sound.midi.Receiver
 import javax.sound.midi.ShortMessage
 
@@ -61,24 +62,24 @@ class InputToMidi(
         /** Key codes follow the AWT/VK numbering used by jnativehook. */
         private val KEY_MAP: Map<Int, Int> = mapOf(
             // Lower row: white keys
-            0x5A to 0,  // Z  C
-            0x58 to 2,  // X  D
-            0x43 to 4,  // C  E
-            0x56 to 5,  // V  F
-            0x42 to 7,  // B  G
-            0x4E to 9,  // N  A
-            0x4D to 11, // M  B
-            0xBC to 12, // ,  C (next octave)
+            NativeKeyEvent.VC_Z to 0,       // Z  C
+            NativeKeyEvent.VC_X to 2,       // X  D
+            NativeKeyEvent.VC_C to 4,       // C  E
+            NativeKeyEvent.VC_V to 5,       // V  F
+            NativeKeyEvent.VC_B to 7,       // B  G
+            NativeKeyEvent.VC_N to 9,       // N  A
+            NativeKeyEvent.VC_M to 11,      // M  B
+            NativeKeyEvent.VC_COMMA to 12,  // ,  C (next octave)
             // Upper row: black keys
-            0x53 to 1,  // S  C#
-            0x44 to 3,  // D  D#
-            0x47 to 6,  // G  F#
-            0x48 to 8,  // H  G#
-            0x4A to 10, // J  A#
-            // Mouse buttons
-            0x01 to 12, // left   -> C
-            0x02 to 14, // middle -> D
-            0x03 to 16, // right  -> E
+            NativeKeyEvent.VC_S to 1,       // S  C#
+            NativeKeyEvent.VC_D to 3,       // D  D#
+            NativeKeyEvent.VC_G to 6,       // G  F#
+            NativeKeyEvent.VC_H to 8,       // H  G#
+            NativeKeyEvent.VC_J to 10,      // J  A#
+            // Mouse buttons (NativeMouseEvent constants)
+            1 to 12,  // left   -> C
+            2 to 14,  // middle -> D
+            3 to 16,  // right  -> E
         )
     }
 }

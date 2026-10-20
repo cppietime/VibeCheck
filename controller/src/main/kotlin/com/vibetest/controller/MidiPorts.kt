@@ -64,7 +64,7 @@ fun receiverFor(device: MidiDevice): Receiver =
  * opening a port starts native I/O threads that would keep the JVM alive after
  * the command finishes.
  */
-private fun outputDevices(): List<MidiDevice> =
+internal fun outputDevices(): List<MidiDevice> =
     MidiSystem.getMidiDeviceInfo()
         .mapNotNull { info ->
             try {

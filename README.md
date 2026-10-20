@@ -12,7 +12,9 @@ the JDK has no cross-platform global keyboard/mouse hook.
 
 ## Requirements
 
-- JDK 17 or newer
+- A JDK 21 installation. You do **not** need to set `JAVA_HOME`: Gradle picks a
+  matching JDK automatically via `gradle/gradle-daemon-jvm.properties`, and will
+  download one if none is installed.
 - A virtual MIDI loopback port, e.g. [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html)
   on Windows. Create a port named `loopMIDI` (or pass `--port` to match your name).
   On macOS use the IAC Driver; on Linux use `snd-virmidi` or `virmidi`.
