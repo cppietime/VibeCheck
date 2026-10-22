@@ -1,4 +1,4 @@
-package com.vibetest.controller
+package com.vibetest.controller.midi
 
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import javax.sound.midi.Receiver
@@ -35,6 +35,11 @@ class InputToMidi(
     fun noteOff(keyCode: Int) {
         val note = activeKeys.remove(keyCode) ?: return
         send(ShortMessage.NOTE_OFF, note, 0)
+    }
+
+    fun pitchBend(bend: Int) {
+        val b = bend.coerceIn(0, 0x3FFF)
+        send(ShortMessage.PITCH_BEND, (b and 0x7f), b.shr(8))
     }
 
     fun allNotesOff() {

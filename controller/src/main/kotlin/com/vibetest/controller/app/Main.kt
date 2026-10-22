@@ -1,10 +1,16 @@
-package com.vibetest.controller
+package com.vibetest.controller.app
 
 import com.github.kwhat.jnativehook.GlobalScreen
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent
 import com.github.kwhat.jnativehook.mouse.NativeMouseListener
+import com.vibetest.controller.midi.InputToMidi
+import com.vibetest.controller.midi.listMidiPorts
+import com.vibetest.controller.midi.openMidiOutput
+import com.vibetest.controller.midi.outputDevices
+import com.vibetest.controller.midi.receiverFor
+import com.vibetest.controller.ui.ControllerWindow
 import javax.sound.midi.MidiDevice
 import javax.sound.midi.MidiUnavailableException
 import java.util.logging.Level
@@ -74,6 +80,8 @@ fun main(args: Array<String>) {
     GlobalScreen.registerNativeHook()
     GlobalScreen.addNativeKeyListener(listener)
     GlobalScreen.addNativeMouseListener(listener)
+
+    ControllerWindow(midi)
 
     Runtime.getRuntime().addShutdownHook(Thread {
         midi.allNotesOff()

@@ -1,4 +1,4 @@
-package com.vibetest.controller
+package com.vibetest.controller.midi
 
 import javax.sound.midi.MidiDevice
 import javax.sound.midi.MidiMessage
