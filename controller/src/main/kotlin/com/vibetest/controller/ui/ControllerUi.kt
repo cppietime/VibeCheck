@@ -1,5 +1,6 @@
 package com.vibetest.controller.ui
 
+import com.vibetest.controller.config.defaultMidiConfig
 import com.vibetest.controller.midi.InputToMidi
 import java.awt.BorderLayout
 import java.awt.Color
@@ -7,9 +8,13 @@ import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Point
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -48,6 +53,12 @@ class ControllerWindow(midi: InputToMidi) {
 
         frame.add(panel)
         frame.pack()
+
+        frame.addWindowFocusListener(object : WindowAdapter() {
+            override fun windowGainedFocus(e: WindowEvent?) {
+                mousePanel.requestFocusInWindow()
+            }
+        })
 
         frame.setLocationRelativeTo(null)
         frame.isVisible = true
@@ -130,6 +141,27 @@ class ControllerMousePanel(val midi: InputToMidi, private val window: Controller
         addMouseListener(mouseAdapter)
         addMouseMotionListener(mouseAdapter)
         addMouseWheelListener(mouseAdapter)
+
+        val keyListener = object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent) {
+                when (val code = e.keyCode) {
+                    midi.config.octaveUpKey -> midi.shiftOctave(1)
+                    midi.config.octaveDownKey -> midi.shiftOctave(2)
+                    else -> {
+                        //val note = config.keyNoteMap[code] ?: return
+                        midi.noteOn(code)
+                    }
+                }
+            }
+
+            override fun keyReleased(e: KeyEvent) {
+                //val note = config.keyNoteMap[e.keyCode] ?: return
+                midi.noteOff(e.keyCode)
+            }
+        }
+        addKeyListener(keyListener)
+
+        requestFocusInWindow()
     }
 
     override fun paintComponent(g: Graphics?) {

@@ -1,6 +1,8 @@
 package com.vibetest.controller.midi
 
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+import com.vibetest.controller.config.MidiConfig
+import com.vibetest.controller.config.defaultMidiConfig
 import javax.sound.midi.Receiver
 import javax.sound.midi.ShortMessage
 
@@ -17,6 +19,7 @@ import javax.sound.midi.ShortMessage
 class InputToMidi(
     private val receiver: Receiver,
     private val channel: Int = 0,
+    val config: MidiConfig = defaultMidiConfig(),
 ) {
     private val activeKeys = mutableMapOf<Int, Int>()
 
@@ -64,7 +67,7 @@ class InputToMidi(
     }
 
     private fun noteFor(keyCode: Int): Int? {
-        val semitone = KEY_MAP[keyCode] ?: return null
+        val semitone = config.keyNoteMap[keyCode] ?: return null
         return (octave * 12 + semitone).coerceIn(0, 127)
     }
 

@@ -123,22 +123,7 @@ private fun runController(device: MidiDevice, channel: Int) {
 
     Logger.getLogger(GlobalScreen::class.java.`package`?.name ?: "").level = Level.WARNING
 
-    val listener = object : NativeKeyListener {
-        override fun nativeKeyPressed(event: NativeKeyEvent) {
-            when (event.keyCode) {
-                NativeKeyEvent.VC_UP -> midi.shiftOctave(1)
-                NativeKeyEvent.VC_DOWN -> midi.shiftOctave(-1)
-                else -> midi.noteOn(event.keyCode)
-            }
-        }
-
-        override fun nativeKeyReleased(event: NativeKeyEvent) {
-            midi.noteOff(event.keyCode)
-        }
-    }
-
     GlobalScreen.registerNativeHook()
-    GlobalScreen.addNativeKeyListener(listener)
 
     ControllerWindow(midi)
 
