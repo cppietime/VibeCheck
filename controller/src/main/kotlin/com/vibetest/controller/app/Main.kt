@@ -47,50 +47,7 @@ fun main(args: Array<String>) {
         exitProcess(1)
     }
 
-    val midi = InputToMidi(receiverFor(device), options.channel)
-    println("Sending MIDI to '${device.deviceInfo.name}' on channel ${options.channel + 1}.")
-    println("Keys Z-M play notes, S/D/G/H/J play sharps, arrow keys change octave. Ctrl+C to quit.")
-
-    // jnativehook logs every event at INFO level by default; silence it.
-    // Class.getPackageName() is Java 9+; use getPackage().getName() for Java 8 compat.
-    Logger.getLogger(GlobalScreen::class.java.`package`?.name ?: "").level = Level.WARNING
-
-    val listener = object : NativeKeyListener, NativeMouseListener {
-        override fun nativeKeyPressed(event: NativeKeyEvent) {
-            when (event.keyCode) {
-                NativeKeyEvent.VC_UP -> midi.shiftOctave(1)
-                NativeKeyEvent.VC_DOWN -> midi.shiftOctave(-1)
-                else -> midi.noteOn(event.keyCode)
-            }
-        }
-
-        override fun nativeKeyReleased(event: NativeKeyEvent) {
-            midi.noteOff(event.keyCode)
-        }
-
-        override fun nativeMousePressed(event: NativeMouseEvent) {
-            midi.noteOn(event.button)
-        }
-
-        override fun nativeMouseReleased(event: NativeMouseEvent) {
-            midi.noteOff(event.button)
-        }
-    }
-
-    GlobalScreen.registerNativeHook()
-    GlobalScreen.addNativeKeyListener(listener)
-    GlobalScreen.addNativeMouseListener(listener)
-
-    ControllerWindow(midi)
-
-    Runtime.getRuntime().addShutdownHook(Thread {
-        midi.allNotesOff()
-        GlobalScreen.unregisterNativeHook()
-        device.close()
-    })
-
-    // The native hook runs on its own thread; keep the main thread alive.
-    Thread.currentThread().join()
+    runController(device, options.channel)
 }
 
 private data class Options(
@@ -166,7 +123,7 @@ private fun runController(device: MidiDevice, channel: Int) {
 
     Logger.getLogger(GlobalScreen::class.java.`package`?.name ?: "").level = Level.WARNING
 
-    val listener = object : NativeKeyListener, NativeMouseListener {
+    val listener = object : NativeKeyListener {
         override fun nativeKeyPressed(event: NativeKeyEvent) {
             when (event.keyCode) {
                 NativeKeyEvent.VC_UP -> midi.shiftOctave(1)
@@ -178,19 +135,12 @@ private fun runController(device: MidiDevice, channel: Int) {
         override fun nativeKeyReleased(event: NativeKeyEvent) {
             midi.noteOff(event.keyCode)
         }
-
-        override fun nativeMousePressed(event: NativeMouseEvent) {
-            midi.noteOn(event.button)
-        }
-
-        override fun nativeMouseReleased(event: NativeMouseEvent) {
-            midi.noteOff(event.button)
-        }
     }
 
     GlobalScreen.registerNativeHook()
     GlobalScreen.addNativeKeyListener(listener)
-    GlobalScreen.addNativeMouseListener(listener)
+
+    ControllerWindow(midi)
 
     Runtime.getRuntime().addShutdownHook(Thread {
         midi.allNotesOff()

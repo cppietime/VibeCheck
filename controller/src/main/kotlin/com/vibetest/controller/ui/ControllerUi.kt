@@ -6,13 +6,10 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
-import java.awt.GridLayout
 import java.awt.Point
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.awt.event.MouseListener
+import java.awt.event.MouseWheelEvent
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -21,6 +18,10 @@ import javax.swing.SwingUtilities
 class ControllerWindow(midi: InputToMidi) {
     lateinit var frame: JFrame
     lateinit var mousePanel: ControllerMousePanel
+
+    private var xLabel: JLabel? = null
+    private var yLabel: JLabel? = null
+    private var zLabel: JLabel? = null
 
     init {
         SwingUtilities.invokeLater { createGui(midi) }
@@ -32,18 +33,37 @@ class ControllerWindow(midi: InputToMidi) {
 
         val panel = JPanel(BorderLayout())
 
-        mousePanel = ControllerMousePanel(midi)
+        mousePanel = ControllerMousePanel(midi, this)
         panel.add(mousePanel, BorderLayout.NORTH)
+
+        val infoPanel = JPanel(BorderLayout())
+        xLabel = JLabel()
+        yLabel = JLabel()
+        zLabel = JLabel()
+        infoPanel.add(xLabel!!, BorderLayout.WEST)
+        infoPanel.add(yLabel!!, BorderLayout.EAST)
+        infoPanel.add(zLabel!!, BorderLayout.SOUTH)
+
+        panel.add(infoPanel, BorderLayout.SOUTH)
 
         frame.add(panel)
         frame.pack()
 
         frame.setLocationRelativeTo(null)
         frame.isVisible = true
+
+        updateLabels()
+    }
+
+    fun updateLabels() {
+        xLabel?.text = "X: ${mousePanel.xOffset}"
+        yLabel?.text = "Y: ${mousePanel.yOffset}"
+        zLabel?.text = "Wheel: ${mousePanel.zOffset}"
+        frame.pack()
     }
 }
 
-class ControllerMousePanel(val midi: InputToMidi) : JPanel() {
+class ControllerMousePanel(val midi: InputToMidi, private val window: ControllerWindow) : JPanel() {
     companion object {
         val WIDTH = 400
         val HEIGHT = 400
@@ -52,6 +72,13 @@ class ControllerMousePanel(val midi: InputToMidi) : JPanel() {
     private var startingPoint = Point(WIDTH / 2, HEIGHT / 2)
     private var lastPoint = Point(0, 0)
     private var tracking = false
+
+    var xOffset = 0.0
+        private set
+    var yOffset = 0.0
+        private set
+    var zOffset = 0.0
+        private set
 
     init {
         preferredSize = Dimension(WIDTH, HEIGHT)
@@ -70,37 +97,39 @@ class ControllerMousePanel(val midi: InputToMidi) : JPanel() {
 
             override fun mousePressed(e: MouseEvent) {
                 requestFocusInWindow()
-                startingPoint = e.point
                 lastPoint = e.point
-                tracking = true
+                startTrackingMouse()
                 repaint()
             }
 
             override fun mouseReleased(e: MouseEvent) {
                 lastPoint = e.point
-                tracking = false
+                stopTrackingMouse()
                 repaint()
             }
 
             override fun mouseDragged(e: MouseEvent) {
-                if (tracking) {
-                    lastPoint = e.point
-                    midi.pitchBend((e.point.x - startingPoint.x) * 0x3FFF / WIDTH)
-                }
+                lastPoint = e.point
+                trackMouse()
                 repaint()
             }
 
             override fun mouseMoved(e: MouseEvent) {
-                if (tracking) {
-                    lastPoint = e.point
-                    midi.pitchBend((e.point.x - startingPoint.x) * 0x3FFF / WIDTH)
-                }
+                lastPoint = e.point
+                trackMouse()
+                repaint()
+            }
+
+            override fun mouseWheelMoved(e: MouseWheelEvent) {
+                zOffset += e.wheelRotation / 32.0
+                trackMouseWheel()
                 repaint()
             }
         }
 
         addMouseListener(mouseAdapter)
         addMouseMotionListener(mouseAdapter)
+        addMouseWheelListener(mouseAdapter)
     }
 
     override fun paintComponent(g: Graphics?) {
@@ -114,5 +143,28 @@ class ControllerMousePanel(val midi: InputToMidi) : JPanel() {
             0
         ) else Color.BLACK
         g2d.fillRect(0, 0, width, height)
+    }
+
+    private fun startTrackingMouse() {
+        tracking = true
+        startingPoint = lastPoint
+    }
+
+    private fun stopTrackingMouse() {
+        tracking = false
+    }
+
+    private fun trackMouse() {
+        if (!tracking) return
+        xOffset = ((lastPoint.x - startingPoint.x).toDouble() / WIDTH * 2)
+        yOffset = ((lastPoint.y - startingPoint.y).toDouble() / HEIGHT * 2)
+        midi.pitchBend(xOffset)
+        midi.tremolo(yOffset)
+        window.updateLabels()
+    }
+
+    private fun trackMouseWheel() {
+        midi.cc(2, zOffset)
+        window.updateLabels()
     }
 }

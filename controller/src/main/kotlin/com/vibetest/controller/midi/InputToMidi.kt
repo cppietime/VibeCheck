@@ -37,9 +37,20 @@ class InputToMidi(
         send(ShortMessage.NOTE_OFF, note, 0)
     }
 
-    fun pitchBend(bend: Int) {
-        val b = bend.coerceIn(0, 0x3FFF)
-        send(ShortMessage.PITCH_BEND, (b and 0x7f), b.shr(8))
+    fun pitchBend(bend: Double) {
+        val b = ((bend / 2 + 0.5).coerceIn(0.0, 1.0) * 0x3fff).toInt()
+        println("Vibrato $bend $b")
+        send(ShortMessage.PITCH_BEND, (b and 0x7f), b.shr(7) and 0x7f)
+    }
+
+    fun tremolo(tremolo: Double) {
+        val t = ((tremolo / 2 + 0.5).coerceIn(0.0, 1.0) * 0x7f).toInt()
+        send(ShortMessage.CONTROL_CHANGE, 1, t)
+    }
+
+    fun cc(param: Int, amt: Double) {
+        val t = ((amt / 2 + 0.5).coerceIn(0.0, 1.0) * 0x7f).toInt()
+        send(ShortMessage.CONTROL_CHANGE, param, t)
     }
 
     fun allNotesOff() {
