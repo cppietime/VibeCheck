@@ -1,6 +1,5 @@
 package com.vibetest.controller.config
 
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 
@@ -8,15 +7,20 @@ sealed interface MidiAction
 
 data class NoteMidiAction(val note: Int) : MidiAction
 data class OctaveMidiAction(val shift: Int) : MidiAction
-data class SustainMidiAction(val dummy: Boolean = false) : MidiAction
+data class SustainMidiAction(private val _dummy: Boolean = false) : MidiAction
+data class ChordModeMidiAction(private val _dummy: Boolean = false) : MidiAction
+data class ChordMidiAction(val intervals: List<Int>) : MidiAction
 
 class MidiConfig(
     val keyNoteMap: Map<Int, MidiAction>,
+    private val _chordKeyNoteMap: Map<Int, MidiAction>,
     val mouseButtonMap: Map<Int, MidiAction>,
     val xChannel: String,
     val yChannel: String,
     val wheelChannel: String,
-)
+) {
+    val chordKeyNoteMap get() = keyNoteMap + _chordKeyNoteMap
+}
 
 fun defaultMidiConfig() = MidiConfig(
     mapOf(
@@ -48,6 +52,11 @@ fun defaultMidiConfig() = MidiConfig(
         KeyEvent.VK_I to NoteMidiAction(24),
         KeyEvent.VK_SHIFT to OctaveMidiAction(1),
         KeyEvent.VK_CONTROL to OctaveMidiAction(-1),
+        KeyEvent.VK_CAPS_LOCK to ChordModeMidiAction(),
+    ),
+    mapOf(
+        KeyEvent.VK_A to ChordMidiAction(listOf(0, 4, 7)),
+        KeyEvent.VK_S to ChordMidiAction(listOf(0, 3, 7)),
     ),
     mapOf(
         MouseEvent.BUTTON3 to SustainMidiAction()

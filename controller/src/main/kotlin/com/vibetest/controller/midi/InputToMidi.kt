@@ -1,6 +1,7 @@
 package com.vibetest.controller.midi
 
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+import com.vibetest.controller.config.ChordMidiAction
+import com.vibetest.controller.config.ChordModeMidiAction
 import com.vibetest.controller.config.MidiAction
 import com.vibetest.controller.config.MidiConfig
 import com.vibetest.controller.config.NoteMidiAction
@@ -25,29 +26,41 @@ class InputToMidi(
     private val channel: Int = 0,
     val config: MidiConfig = defaultMidiConfig(),
 ) {
-    private val activeKeys = mutableMapOf<Int, Int>()
-    private val sustainKeys = mutableMapOf<Int, Int>()
-    private var sustain = false
+    private val activeKeys = mutableMapOf<Int, List<Int>>()
+    private val sustainKeys = mutableMapOf<Int, List<Int>>()
+    var sustain = false
+        private set
+    var chordMode = false
+        private set
+    var lastChord: ChordMidiAction? = null
+        private set
 
     var octave: Int = 4
         set(value) {
             field = value.coerceIn(0, 8)
         }
 
-    fun keyPress(keyCode: Int, map: Map<Int, MidiAction> = config.keyNoteMap) {
+    val currentKeyMap get() = if (chordMode) config.chordKeyNoteMap else config.keyNoteMap
+
+    fun keyPress(keyCode: Int, map: Map<Int, MidiAction> = currentKeyMap) {
         val action = map[keyCode] ?: return
         when (action) {
             is NoteMidiAction -> noteOn(keyCode, action.note)
             is OctaveMidiAction -> shiftOctave(action.shift)
             is SustainMidiAction -> beginSustain()
+            is ChordMidiAction -> selectChord(action)
+            is ChordModeMidiAction -> {
+                if (chordMode) endChord() else beginChord()
+            }
         }
     }
 
-    fun keyRelease(keyCode: Int, map: Map<Int, MidiAction> = config.keyNoteMap) {
+    fun keyRelease(keyCode: Int, map: Map<Int, MidiAction> = currentKeyMap) {
         val action = map[keyCode] ?: return
         when (action) {
             is NoteMidiAction -> noteOff(keyCode)
             is SustainMidiAction -> endSustain()
+            is ChordMidiAction -> selectChord(null)
             else -> {}
         }
     }
@@ -55,23 +68,25 @@ class InputToMidi(
     fun noteOn(keyCode: Int, semitone: Int) {
         if (activeKeys.containsKey(keyCode)) return
         val note = noteFor(semitone)
-        activeKeys[keyCode] = note
+        val notes = if (chordMode) lastChord?.intervals?.map { it + note } ?: listOf(note) else listOf(note)
+        activeKeys[keyCode] = notes
         if (sustain) {
-            sustainKeys[keyCode] = note
+            sustainKeys[keyCode] = notes
         }
-        send(ShortMessage.NOTE_ON, note, VELOCITY)
+        notes.forEach { send(ShortMessage.NOTE_ON, it, VELOCITY) }
     }
 
     fun noteOff(keyCode: Int) {
-        val note = activeKeys.remove(keyCode) ?: return
+        val notes = activeKeys.remove(keyCode) ?: return
         if (!sustain) {
-            send(ShortMessage.NOTE_OFF, note, 0)
+            notes.forEach { note ->
+                send(ShortMessage.NOTE_OFF, note, 0)
+            }
         }
     }
 
     fun pitchBend(bend: Double) {
         val b = ((bend / 2 + 0.5).coerceIn(0.0, 1.0) * 0x3fff).toInt()
-        println("Vibrato $bend $b")
         send(ShortMessage.PITCH_BEND, (b and 0x7f), b.shr(7) and 0x7f)
     }
 
@@ -86,7 +101,7 @@ class InputToMidi(
     }
 
     fun allNotesOff() {
-        activeKeys.values.forEach { send(ShortMessage.NOTE_OFF, it, 0) }
+        activeKeys.values.forEach { notes -> notes.forEach { send(ShortMessage.NOTE_OFF, it, 0) } }
         activeKeys.clear()
     }
 
@@ -107,9 +122,28 @@ class InputToMidi(
         if (!sustain) return
         sustain = false
         for (key in sustainKeys) {
-            send(ShortMessage.NOTE_OFF, key.value, 0)
+            key.value.forEach {
+                send(ShortMessage.NOTE_OFF, it, 0)
+            }
         }
         sustainKeys.clear()
+    }
+
+    fun beginChord() {
+        if (chordMode) return
+        chordMode = true
+        allNotesOff()
+    }
+
+    fun endChord() {
+        if (!chordMode) return
+        chordMode = false
+        allNotesOff()
+    }
+
+    fun selectChord(chord: ChordMidiAction?) {
+        if (!chordMode) return
+        lastChord = chord
     }
 
     private fun noteFor(semitone: Int): Int {

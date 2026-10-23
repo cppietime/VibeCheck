@@ -54,11 +54,22 @@ class ControllerWindow(midi: InputToMidi) {
         frame.add(panel)
         frame.pack()
 
-        frame.addWindowFocusListener(object : WindowAdapter() {
+        object : WindowAdapter() {
             override fun windowGainedFocus(e: WindowEvent?) {
                 mousePanel.requestFocusInWindow()
             }
-        })
+
+            override fun windowLostFocus(e: WindowEvent?) {
+                midi.allNotesOff()
+            }
+
+            override fun windowIconified(e: WindowEvent?) {
+                midi.allNotesOff()
+            }
+        }.let {
+            frame.addWindowFocusListener(it)
+            frame.addWindowListener(it)
+        }
 
         frame.setLocationRelativeTo(null)
         frame.isVisible = true
@@ -172,11 +183,11 @@ class ControllerMousePanel(val midi: InputToMidi, private val window: Controller
 
         val g2d = g as Graphics2D
 
-        g2d.color = if (tracking) Color(
-            (lastPoint.x.toFloat() / WIDTH * 255).toInt().coerceIn(0, 255),
-            (lastPoint.y.toFloat() / HEIGHT * 255).toInt().coerceIn(0, 255),
-            0
-        ) else Color.BLACK
+        val red = if (tracking) (lastPoint.x.toFloat() / WIDTH * 255).toInt().coerceIn(0, 255) else 0
+        val green = if (tracking) (lastPoint.y.toFloat() / HEIGHT * 255).toInt().coerceIn(0, 255) else 0
+        val blue = if (midi.sustain) 255 else 0
+
+        g2d.color = Color(red, green, blue)
         g2d.fillRect(0, 0, width, height)
     }
 
