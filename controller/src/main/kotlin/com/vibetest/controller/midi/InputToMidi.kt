@@ -1,7 +1,11 @@
 package com.vibetest.controller.midi
 
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+import com.vibetest.controller.config.MidiAction
 import com.vibetest.controller.config.MidiConfig
+import com.vibetest.controller.config.NoteMidiAction
+import com.vibetest.controller.config.OctaveMidiAction
+import com.vibetest.controller.config.SustainMidiAction
 import com.vibetest.controller.config.defaultMidiConfig
 import javax.sound.midi.Receiver
 import javax.sound.midi.ShortMessage
@@ -22,22 +26,47 @@ class InputToMidi(
     val config: MidiConfig = defaultMidiConfig(),
 ) {
     private val activeKeys = mutableMapOf<Int, Int>()
+    private val sustainKeys = mutableMapOf<Int, Int>()
+    private var sustain = false
 
     var octave: Int = 4
         set(value) {
             field = value.coerceIn(0, 8)
         }
 
-    fun noteOn(keyCode: Int) {
+    fun keyPress(keyCode: Int, map: Map<Int, MidiAction> = config.keyNoteMap) {
+        val action = map[keyCode] ?: return
+        when (action) {
+            is NoteMidiAction -> noteOn(keyCode, action.note)
+            is OctaveMidiAction -> shiftOctave(action.shift)
+            is SustainMidiAction -> beginSustain()
+        }
+    }
+
+    fun keyRelease(keyCode: Int, map: Map<Int, MidiAction> = config.keyNoteMap) {
+        val action = map[keyCode] ?: return
+        when (action) {
+            is NoteMidiAction -> noteOff(keyCode)
+            is SustainMidiAction -> endSustain()
+            else -> {}
+        }
+    }
+
+    fun noteOn(keyCode: Int, semitone: Int) {
         if (activeKeys.containsKey(keyCode)) return
-        val note = noteFor(keyCode) ?: return
+        val note = noteFor(semitone)
         activeKeys[keyCode] = note
+        if (sustain) {
+            sustainKeys[keyCode] = note
+        }
         send(ShortMessage.NOTE_ON, note, VELOCITY)
     }
 
     fun noteOff(keyCode: Int) {
         val note = activeKeys.remove(keyCode) ?: return
-        send(ShortMessage.NOTE_OFF, note, 0)
+        if (!sustain) {
+            send(ShortMessage.NOTE_OFF, note, 0)
+        }
     }
 
     fun pitchBend(bend: Double) {
@@ -66,8 +95,24 @@ class InputToMidi(
         octave += delta
     }
 
-    private fun noteFor(keyCode: Int): Int? {
-        val semitone = config.keyNoteMap[keyCode] ?: return null
+    fun beginSustain() {
+        if (sustain) return
+        sustain = true
+        for ((key, value) in activeKeys) {
+            sustainKeys[key] = value
+        }
+    }
+
+    fun endSustain() {
+        if (!sustain) return
+        sustain = false
+        for (key in sustainKeys) {
+            send(ShortMessage.NOTE_OFF, key.value, 0)
+        }
+        sustainKeys.clear()
+    }
+
+    private fun noteFor(semitone: Int): Int {
         return (octave * 12 + semitone).coerceIn(0, 127)
     }
 
@@ -77,28 +122,5 @@ class InputToMidi(
 
     companion object {
         private const val VELOCITY = 100
-
-        /** Key codes follow the AWT/VK numbering used by jnativehook. */
-        private val KEY_MAP: Map<Int, Int> = mapOf(
-            // Lower row: white keys
-            NativeKeyEvent.VC_Z to 0,       // Z  C
-            NativeKeyEvent.VC_X to 2,       // X  D
-            NativeKeyEvent.VC_C to 4,       // C  E
-            NativeKeyEvent.VC_V to 5,       // V  F
-            NativeKeyEvent.VC_B to 7,       // B  G
-            NativeKeyEvent.VC_N to 9,       // N  A
-            NativeKeyEvent.VC_M to 11,      // M  B
-            NativeKeyEvent.VC_COMMA to 12,  // ,  C (next octave)
-            // Upper row: black keys
-            NativeKeyEvent.VC_S to 1,       // S  C#
-            NativeKeyEvent.VC_D to 3,       // D  D#
-            NativeKeyEvent.VC_G to 6,       // G  F#
-            NativeKeyEvent.VC_H to 8,       // H  G#
-            NativeKeyEvent.VC_J to 10,      // J  A#
-            // Mouse buttons (NativeMouseEvent constants)
-            1 to 12,  // left   -> C
-            2 to 14,  // middle -> D
-            3 to 16,  // right  -> E
-        )
     }
 }

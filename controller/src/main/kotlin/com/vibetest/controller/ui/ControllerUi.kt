@@ -108,14 +108,24 @@ class ControllerMousePanel(val midi: InputToMidi, private val window: Controller
 
             override fun mousePressed(e: MouseEvent) {
                 requestFocusInWindow()
-                lastPoint = e.point
-                startTrackingMouse()
+                when (e.button) {
+                    MouseEvent.BUTTON1 -> {
+                        lastPoint = e.point
+                        startTrackingMouse()
+                    }
+                }
+                midi.keyPress(e.button, midi.config.mouseButtonMap)
                 repaint()
             }
 
             override fun mouseReleased(e: MouseEvent) {
-                lastPoint = e.point
-                stopTrackingMouse()
+                when (e.button) {
+                    MouseEvent.BUTTON1 -> {
+                        lastPoint = e.point
+                        stopTrackingMouse()
+                    }
+                }
+                midi.keyRelease(e.button, midi.config.mouseButtonMap)
                 repaint()
             }
 
@@ -144,19 +154,12 @@ class ControllerMousePanel(val midi: InputToMidi, private val window: Controller
 
         val keyListener = object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent) {
-                when (val code = e.keyCode) {
-                    midi.config.octaveUpKey -> midi.shiftOctave(1)
-                    midi.config.octaveDownKey -> midi.shiftOctave(2)
-                    else -> {
-                        //val note = config.keyNoteMap[code] ?: return
-                        midi.noteOn(code)
-                    }
-                }
+                midi.keyPress(e.keyCode)
             }
 
             override fun keyReleased(e: KeyEvent) {
                 //val note = config.keyNoteMap[e.keyCode] ?: return
-                midi.noteOff(e.keyCode)
+                midi.keyRelease(e.keyCode)
             }
         }
         addKeyListener(keyListener)
